@@ -10,6 +10,7 @@
 // processes take longer than 33ms, you'll need to increase PING_INTERVAL so it doesn't get behind.
 // ---------------------------------------------------------------------------
 #include <NewPing.h>
+#include <math.h>
 
 #define SONAR_NUM     2 // Number or sensors.
 #define MAX_DISTANCE 200 // Maximum distance (in cm) to ping.
@@ -18,6 +19,12 @@
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
 unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
 uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
+
+struct coord_t
+{
+  unsigned int x;
+  unsigned int y;
+};
 
 NewPing sonar[SONAR_NUM] = {     // Sensor object array.
   NewPing(13, 12, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
@@ -36,6 +43,17 @@ NewPing sonar[SONAR_NUM] = {     // Sensor object array.
   NewPing(50, 51, MAX_DISTANCE),
   NewPing(52, 53, MAX_DISTANCE)*/
 };
+
+static long sqr (unsigned int x) { return x * (long)x; }
+
+struct coord_t translate (unsigned int x, unsigned int z1, unsigned int z2)
+{
+  unsigned long x_out = (sqr(x) - sqr(z1) + sqr(z2)) / (2 * x);
+  unsigned long y_out = sqrt (abs (sqr(z2) - sqr(x_out)));
+  coord_t res = { x_out, y_out };
+  return res;
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -62,7 +80,7 @@ void loop() {
 
 void echoCheck() { // If ping received, set the sensor distance to array.
   if (sonar[currentSensor].check_timer())
-    cm[currentSensor] = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM;
+    cm[currentSensor] = sonar[currentSensor].ping_result / (US_ROUNDTRIP_CM / 10);
 }
 
 void oneSensorCycle() { // Sensor ping cycle complete, do something with the results.
@@ -70,7 +88,16 @@ void oneSensorCycle() { // Sensor ping cycle complete, do something with the res
     Serial.print(i);
     Serial.print("=");
     Serial.print(cm[i]);
-    Serial.print("cm ");
+    Serial.print("mm ");
   }
+  #if SONAR_NUM == 2
+    unsigned int x = 31; // cm between sensors
+    struct coord_t pt = translate (x, cm[0], cm[1]);
+    Serial.print("x=");
+    Serial.print(pt.x);
+    Serial.print("mm, y=");
+    Serial.print(pt.y);
+    Serial.print("mm ");
+  #endif
   Serial.println();
 }
