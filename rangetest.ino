@@ -13,16 +13,16 @@
 
 #define SONAR_NUM     2 // Number or sensors.
 #define MAX_DISTANCE 200 // Maximum distance (in cm) to ping.
-#define PING_INTERVAL 500 // slowed down to be able to read on console :) 33 Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
+#define PING_INTERVAL 50 // slowed down to be able to read on console :) 33 Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
 
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
 unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
 uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
 
 NewPing sonar[SONAR_NUM] = {     // Sensor object array.
-  NewPing(13, 12, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
-  NewPing(6, 5, MAX_DISTANCE)/*,
-  NewPing(45, 20, MAX_DISTANCE),
+  //NewPing(13, 12, MAX_DISTANCE), // Each sensor's trigger pin, echo pin, and max distance to ping.
+  NewPing(5, 6, MAX_DISTANCE),
+  NewPing(8, 7, MAX_DISTANCE)/*,
   NewPing(21, 22, MAX_DISTANCE),
   NewPing(23, 24, MAX_DISTANCE),
   NewPing(25, 26, MAX_DISTANCE),
@@ -62,7 +62,7 @@ void loop() {
 
 void echoCheck() { // If ping received, set the sensor distance to array.
   if (sonar[currentSensor].check_timer())
-    cm[currentSensor] = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM;
+    cm[currentSensor] = sonar[currentSensor].ping_result / (US_ROUNDTRIP_CM / 10);
 }
 
 void oneSensorCycle() { // Sensor ping cycle complete, do something with the results.
@@ -70,7 +70,7 @@ void oneSensorCycle() { // Sensor ping cycle complete, do something with the res
     Serial.print(i);
     Serial.print("=");
     Serial.print(cm[i]);
-    Serial.print("cm ");
+    Serial.print("mm ");
   }
   Serial.println();
 }
