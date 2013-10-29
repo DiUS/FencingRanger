@@ -13,9 +13,11 @@
 #include <math.h>
 
 #define SONAR_NUM     2 // Number or sensors.
-#define MAX_DISTANCE 200 // Maximum distance (in cm) to ping.
-#define PING_INTERVAL 50 // slowed down to be able to read on console :) 33 Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
+#define MAX_DISTANCE  60 // Maximum distance (in cm) to ping.
+#define PING_INTERVAL 60 // slowed down to be able to read on console :) 33 Milliseconds between sensor pings (29ms is about the min to avoid cross-sensor echo).
 
+int greenLed = 11;
+int redLed = 10;
 unsigned long pingTimer[SONAR_NUM]; // Holds the times when the next ping should happen for each sensor.
 unsigned int cm[SONAR_NUM];         // Where the ping distances are stored.
 uint8_t currentSensor = 0;          // Keeps track of which sensor is active.
@@ -48,10 +50,20 @@ static long sqr (unsigned int x) { return x * (long)x; }
 
 struct coord_t translate (unsigned int x, unsigned int z1, unsigned int z2)
 {
-  unsigned long x_out = (sqr(x) - sqr(z1) + sqr(z2)) / (2 * x);
+  unsigned long x_out = abs ((sqr(x) - sqr(z1) + sqr(z2)) / (2 * x));
   unsigned long y_out = sqrt (abs (sqr(z2) - sqr(x_out)));
   coord_t res = { x_out, y_out };
   return res;
+}
+
+int was_good_hit (struct coord_t pt)
+{
+  return (pt.y >= 130 && pt.y <= 200) &&
+         (pt.x >= 130 && pt.x <= 200);
+}
+
+int was_a_hit (unsigned int a, unsigned int b) {
+  return !((a == 0 || a > 450)  && (b == 0 || b > 450));
 }
 
 
@@ -61,6 +73,11 @@ void setup() {
   pingTimer[0] = millis() + 75;           // First ping starts at 75ms, gives time for the Arduino to chill before starting.
   for (uint8_t i = 1; i < SONAR_NUM; i++) // Set the starting time for each sensor.
     pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
+
+  pinMode(greenLed, OUTPUT); 
+  pinMode(redLed, OUTPUT);  
+  digitalWrite(redLed, HIGH);
+  digitalWrite(greenLed, LOW); 
 }
 
 void loop() {
@@ -84,20 +101,55 @@ void echoCheck() { // If ping received, set the sensor distance to array.
 }
 
 void oneSensorCycle() { // Sensor ping cycle complete, do something with the results.
+  #if 0
   for (uint8_t i = 0; i < SONAR_NUM; i++) {
     Serial.print(i);
     Serial.print("=");
     Serial.print(cm[i]);
     Serial.print("mm ");
   }
-  #if SONAR_NUM == 2
-    unsigned int x = 31; // cm between sensors
-    struct coord_t pt = translate (x, cm[0], cm[1]);
+  #endif
+  unsigned int x = 310;
+  struct coord_t pt = translate (x, cm[0], cm[1]);
+#if 1
     Serial.print("x=");
     Serial.print(pt.x);
     Serial.print("mm, y=");
     Serial.print(pt.y);
     Serial.print("mm ");
-  #endif
-  Serial.println();
+#endif
+
+  //Serial.println();
+  static int cycles = 0, hits = 0, good = 0;
+
+  int hit = was_a_hit (cm[0], cm[1]) ? 1 : 0;
+  hits += hit;
+  if (hit)
+    good += was_good_hit (pt) ? 1 : 0;
+
+#define CYCLE_SPAN 3
+#define CYCLE_MIN_HITS 2
+#define CYCLE_MIN_GOOD 2
+
+  if (++cycles < CYCLE_SPAN)
+    ;//return;
+
+  if(was_a_hit(cm[0], cm[1])) {
+  //if (hits >= CYCLE_MIN_HITS) {
+    if(was_good_hit(pt)) {
+    //if (good >= CYCLE_MIN_GOOD) {
+      digitalWrite(greenLed, LOW);
+      digitalWrite(redLed, HIGH);  
+    }
+    else {
+      digitalWrite(greenLed, HIGH);
+      digitalWrite(redLed, LOW);  
+    }
+  }
+  else {
+      digitalWrite(greenLed, HIGH);
+      digitalWrite(redLed, HIGH);  
+  }
+
+  cycles = hits = good = 0;
 }
